@@ -1,6 +1,18 @@
 # Training🚀
 
-You can run `scripts/train.sh` to start training. Don't forget to modify the parameters in the script to match your own paths.
+You can run `scripts/train.sh` to start training. The script supports environment-variable overrides, so you can launch on specific GPUs without editing the file.
+
+For example, to train on GPU 0 and 1:
+
+```bash
+BASE_DATA_PATH=/path/to/LaSeRS \
+OUTPUT_DIR=output/train_gpu01 \
+INCLUDE_GPUS=localhost:0,1 \
+DEEPSPEED_CONFIG=scripts/zero1.json \
+bash scripts/train.sh
+```
+
+Default script template:
 
 ```bash
 export NCCL_P2P_DISABLE="1"
@@ -8,7 +20,7 @@ export NCCL_IB_DISABLE="1"
 
 # ------ main-training ------
 # 显存不足时可选择zero3.json或者zero2.json
-deepspeed --master_port=29500 --include localhost:4 segearth_r2/train/train.py \
+deepspeed --master_port=29500 --include localhost:0 segearth_r2/train/train.py \
     --model_name_or_path "pretrained_model/mllm/Mipha-3B" \
     --vision_tower "pretrained_model/CLIP/siglip-so400m-patch14-384" \
     --vision_tower_mask "pretrained_model/mask2former/model_final_54b88a.pkl" \
@@ -33,7 +45,17 @@ deepspeed --master_port=29500 --include localhost:4 segearth_r2/train/train.py \
     --deepspeed scripts/zero3.json \
     --mask_config 'segearth_r2/model/mask_decoder/mask_config/maskformer2_swin_base_384_bs16_50ep.yaml' \
     --data_ratio '1' \
-    --switch_bs 4 \
+    --switch_bs 4
+```
+
+Troubleshooting:
+
+- If you see `ValueError: No slot '4' specified on host 'localhost'`, your local script may still be old or `INCLUDE_GPUS` was not applied.
+- Check the script and resolved runtime values:
+
+```bash
+grep -n "INCLUDE_GPUS" scripts/train.sh
+BASE_DATA_PATH=/path/to/LaSeRS OUTPUT_DIR=output/train_gpu01 INCLUDE_GPUS=localhost:0,1 DEEPSPEED_CONFIG=scripts/zero1.json bash scripts/train.sh
 ```
 
 After training, you can run `scripts/merge_lora_weights.sh` to merge the LoRA adapter weights into the base model for inference and evaluation.
